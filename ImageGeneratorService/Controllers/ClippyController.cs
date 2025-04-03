@@ -2,8 +2,9 @@
 using System.Text;
 using ImageGeneratorService.Resources.Clippy;
 using Microsoft.AspNetCore.Mvc;
-using SixLabors.Fonts;
 using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
 
 namespace ImageGeneratorService.Controllers;
@@ -150,147 +151,214 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
 
     private const ClippyFont CLIPPY_FONT_INVALID = (ClippyFont)(-1);
     private const ClippyFont CLIPPY_FONT_MAX = (ClippyFont.MSGothic + 1);
+    public record class ClippyOptions(
+        [FromForm(Name = "text")] string? Text = null,
+        [FromForm(Name = "font")] string Font = "",
+        [FromForm(Name = "antialias")] bool Antialias = false,
+        [FromForm(Name = "attachment")] IFormFile? Attachment = null);
 
     [HttpGet("{character=clippy}/generate")]
-    public async Task<IActionResult> GenerateAsync(string text, string character = "", string font = "", bool antialias = true)
+    public Task GenerateAsync(string text, string character = "", string font = "", bool antialias = false)
     {
-        text = UnescapeText(text);
-        var clippyCharacter = ToClippyCharacter(character);
-        var clippyFont = ToClippyFont(font);
-        var stream = await GenerateClippyAsync(text, clippyCharacter, clippyFont, true, antialias);
-        return File(stream, "image/png");
+        return GenerateAsync(character, new ClippyOptions(text, font, antialias));
+    }
+    [HttpPost("{character=clippy}/generate")]
+    public async Task GenerateAsync([FromRoute] string character, [FromForm] ClippyOptions formData)
+    {
+        Image<Rgba32>? attachmentImage = null;
+        string? text = null;
+        try
+        {
+            if (formData.Attachment != null)
+            {
+                if (formData.Attachment.Length is 0 or > 2 * 1024 * 1024)
+                {
+                    await WriteErrorMessageAsync(400, "'attachment' must have a specified size, and may not be larger than 2MB.");
+                    return;
+                }
+
+                var options = new DecoderOptions() { TargetSize = new Size(CLIPPY_DEFAULT_MAX_WIDTH, 800) };
+                using var attachmentStream = formData.Attachment.OpenReadStream();
+                attachmentImage = await Image.LoadAsync<Rgba32>(options, attachmentStream);
+            }
+
+            if (!string.IsNullOrWhiteSpace(formData.Text))
+            {
+                text = UnescapeText(formData.Text);
+            }
+
+            if (string.IsNullOrWhiteSpace(text) && attachmentImage == null)
+            {
+                await WriteErrorMessageAsync(400, "Either 'text' or 'attachment' must be specified.");
+                return;
+            }
+
+            var clippyCharacter = ToClippyCharacter(character);
+            var clippyFont = ToClippyFont(formData.Font);
+
+            var stream = this.Response.Body;
+            this.Response.ContentType = "image/png";
+            await GenerateClippyAsync(stream, text, clippyCharacter, clippyFont, formData.Antialias, attachmentImage);
+        }
+        catch (UnknownImageFormatException)
+        {
+            await WriteErrorMessageAsync(400, "Image format was unrecognised.");
+            return;
+        }
+        catch (Exception ex)
+        {
+            await WriteErrorMessageAsync(500, "Unable to generate the requested image. " + ex.Message);
+            return;
+        }
+        finally
+        {
+            attachmentImage?.Dispose();
+        }
     }
 
-    private async Task<MemoryStream> GenerateClippyAsync(string text, ClippyCharacter character, ClippyFont font, bool wrap, bool antialias)
+    private async Task WriteErrorMessageAsync(int code, string text)
     {
-        using var characterImage = Image.Load<Rgba32>((byte[])ClippyResources.ResourceManager.GetObject(CLIPPY_CHARACTERS[(int)character])!);
-        //var collection = CLIPPY_FONT_COLLECTION.Value;
+        this.Response.StatusCode = code;
+        this.Response.ContentType = "text/plain";
+        await this.Response.WriteAsync(text);
+    }
 
-        var topLeft = CLIPPY_TOP_LEFT.Value;
-        var topRight = CLIPPY_TOP_RIGHT.Value;
-        var bottomLeft = CLIPPY_BOTTOM_LEFT.Value;
-        var bottomRight = CLIPPY_BOTTOM_RIGHT.Value;
-        var arrow = CLIPPY_ARROW.Value;
-
-        var basicPen = new SolidPen(Brushes.Solid(Color.Black), 1);
-        var imageWidth = CLIPPY_DEFAULT_MAX_WIDTH;
-
+    private async Task GenerateClippyAsync(
+        Stream target,
+        string? text,
+        ClippyCharacter character,
+        ClippyFont font,
+        bool antialias,
+        Image<Rgba32>? attachment = null)
+    {
         Image<Rgba32>? textImage = null;
-        Size size;
-        if (!string.IsNullOrWhiteSpace(text))
+        try
         {
-            var clippyFont = font switch
+            using var characterImage = Image.Load<Rgba32>((byte[])ClippyResources.ResourceManager.GetObject(CLIPPY_CHARACTERS[(int)character])!);
+
+            var topLeft = CLIPPY_TOP_LEFT.Value;
+            var topRight = CLIPPY_TOP_RIGHT.Value;
+            var bottomLeft = CLIPPY_BOTTOM_LEFT.Value;
+            var bottomRight = CLIPPY_BOTTOM_RIGHT.Value;
+            var arrow = CLIPPY_ARROW.Value;
+
+            var basicPen = new SolidPen(Brushes.Solid(Color.Black), 1);
+            var imageWidth = CLIPPY_DEFAULT_MAX_WIDTH;
+            Size size;
+
+            if (!string.IsNullOrWhiteSpace(text))
             {
-                ClippyFont.Tahoma => ("Tahoma", 10f),
-                ClippyFont.Times => ("Times New Roman", 11f),
-                ClippyFont.ComicSans => ("Comic Sans MS", 11f),
-                ClippyFont.MSSansSerif => ("Microsoft Sans Serif", 10.5f),
-                ClippyFont.MSGothic => ("MS Gothic", 10.5f),
-                ClippyFont.CourierNew => ("Courier New", 11f),
-                _ => throw new InvalidOperationException()
-            };
+                var clippyFont = font switch
+                {
+                    ClippyFont.Tahoma => ("Tahoma", 10f),
+                    ClippyFont.Times => ("Times New Roman", 11f),
+                    ClippyFont.ComicSans => ("Comic Sans MS", 11f),
+                    ClippyFont.MSSansSerif => ("Microsoft Sans Serif", 10.5f),
+                    ClippyFont.MSGothic => ("MS Gothic", 10.5f),
+                    ClippyFont.CourierNew => ("Courier New", 11f),
+                    _ => throw new InvalidOperationException()
+                };
 
-            using var httpClient = httpClientFactory.CreateClient("TextRenderService");
-            using var resp = await httpClient.GetStreamAsync("render" +
-                $"?text={Uri.EscapeDataString(text)}" +
-                $"&font={Uri.EscapeDataString($"{clippyFont.Item1}, MS Gothic, Noto Emoji, Times New Roman, Seoge UI Symbol")}" +
-                $"&size={clippyFont.Item2}" +
-                $"&maxWidth={imageWidth - 20}" +
-                $"&antialias={antialias}" +
-                $"&gdi=true");
+                using var httpClient = httpClientFactory.CreateClient("TextRenderService");
+                using var resp = await httpClient.GetStreamAsync("render" +
+                    $"?text={Uri.EscapeDataString(text)}" +
+                    $"&font={Uri.EscapeDataString($"{clippyFont.Item1}, Noto Emoji, MS Gothic, Times New Roman, Seoge UI Symbol")}" +
+                    $"&size={clippyFont.Item2}" +
+                    $"&maxWidth={imageWidth - 20}" +
+                    $"&antialias={antialias}" +
+                    $"&gdi=true");
 
-            textImage = await Image.LoadAsync<Rgba32>(resp);
-            size = textImage.Size;
-            imageWidth = Math.Max((int)(size.Width + 20), CLIPPY_MIN_WIDTH);
+                textImage = await Image.LoadAsync<Rgba32>(resp);
+                size = textImage.Size;
+            }
+            else
+            {
+                size = new Size();
+            }
+
+            imageWidth = Math.Max((int)size.Width + 20, attachment != null ? CLIPPY_MIN_WIDTH_WITH_IMAGE : CLIPPY_MIN_WIDTH);
+
+            if (attachment != null)
+            {
+                var ratio = Math.Min((double)Math.Max(imageWidth, 200) / attachment.Width, 400.0 / attachment.Height);
+                var width = (int)Math.Ceiling(attachment.Width * ratio);
+                var height = (int)Math.Ceiling(attachment.Height * ratio);
+
+                var resizeOptions = new ResizeOptions()
+                {
+                    Sampler = KnownResamplers.NearestNeighbor,
+                    Size = new Size(width - 2, height),
+                    Mode = ResizeMode.Max
+                };
+
+                attachment.Mutate(m => m.Resize(resizeOptions)
+                    .Quantize(KnownQuantizers.WebSafe));
+            }
+
+            using var topImage = new Image<Rgba32>(imageWidth, 8);
+            topImage.Mutate(m => m
+                        .SetGraphicsOptions(options => options.Antialias = false)
+                        .Fill(CLIPPY_BACKGROUND, new RectangleF(CLIPPY_CORNER_SIZE, 0, imageWidth - (CLIPPY_CORNER_SIZE * 2), CLIPPY_CORNER_SIZE))
+                        .DrawImage(topLeft, new Point(0, 0), 1.0f)
+                        .DrawImage(topRight, new Point(imageWidth - CLIPPY_CORNER_SIZE, 0), 1.0f)
+                        .DrawLine(basicPen, [new((CLIPPY_CORNER_SIZE - 1), 0), new(imageWidth - (CLIPPY_CORNER_SIZE), 0)])); // i hate off by ones
+
+            var arrowPosition = ((imageWidth / 2.0f) - (characterImage.Width / 2)) + 4; // vibes based maths
+            using var bottomImage = new Image<Rgba32>(imageWidth, CLIPPY_BOTTOM_HEIGHT);
+            bottomImage.Mutate(m => m
+                        .SetGraphicsOptions(options => options.Antialias = false)
+                        .Fill(CLIPPY_BACKGROUND, new RectangleF(8, 0, imageWidth - (CLIPPY_CORNER_SIZE * 2), CLIPPY_CORNER_SIZE))
+                        .DrawImage(bottomLeft, new Point(0, 0), 1.0f)
+                        .DrawImage(bottomRight, new Point(imageWidth - CLIPPY_CORNER_SIZE, 0), 1.0f)
+                        .DrawLine(basicPen, [new((CLIPPY_CORNER_SIZE - 1), (CLIPPY_CORNER_SIZE - 1)), new(imageWidth - (CLIPPY_CORNER_SIZE + 1), (CLIPPY_CORNER_SIZE - 1))])
+                        .DrawImage(arrow, new Point((int)arrowPosition, 0), 1));
+
+            if (attachment != null)
+                size = new Size(size.Width, size.Height + attachment.Height + (textImage != null ? 5 : 0));
+
+            var textRectangle = new Rectangle(10, CLIPPY_TOP_HEIGHT - 1, imageWidth, (int)(size.Height) + 1);
+            var innerRectangle = new Rectangle(0, CLIPPY_TOP_HEIGHT, imageWidth, (int)(size.Height) + 2);
+
+            var imageHeight = CLIPPY_TOP_HEIGHT + size.Height + CLIPPY_BOTTOM_HEIGHT + characterImage.Height;
+            using var returnImage = new Image<Rgba32>(imageWidth, (int)imageHeight);
+            returnImage.Mutate(m =>
+            {
+                m.SetGraphicsOptions(options => options.Antialias = false)
+                 .Fill(Color.Transparent)
+                 .Fill(CLIPPY_BACKGROUND, innerRectangle)
+                 .DrawImage(topImage, new Point(0, 0), 1)
+                 .DrawImage(bottomImage, new Point(0, (int)(CLIPPY_TOP_HEIGHT + size.Height)), 1);
+
+                if (attachment != null)
+                    m.DrawImage(attachment, new Point(Math.Max(1, (int)((imageWidth - attachment.Width) / 2.0f)), CLIPPY_TOP_HEIGHT + size.Height - attachment.Height), 1.0f);
+
+                m.DrawLine(Color.Black, 1, [new PointF(innerRectangle.Left, innerRectangle.Top - 1), new PointF(innerRectangle.Left, innerRectangle.Bottom - 1)])
+                 .DrawLine(Color.Black, 1, [new PointF(innerRectangle.Right - 1, innerRectangle.Top - 1), new PointF(innerRectangle.Right - 1, innerRectangle.Bottom - 1)]);
+
+                if (textImage != null)
+                    m.DrawImage(textImage, new Point(textRectangle.Left, textRectangle.Top), 1);
+
+                m.DrawImage(characterImage, new Point((imageWidth - characterImage.Width) / 2, (int)(CLIPPY_TOP_HEIGHT + size.Height + CLIPPY_BOTTOM_HEIGHT)), 1);
+            });
+
+            var exifProfile = new ExifProfile();
+            exifProfile.SetValue(ExifTag.Software, "Wam's Clippy Generator");
+            exifProfile.SetValue(ExifTag.ImageDescription, "Microsoft Office Assistant" + (text != null ? " saying " + text : ""));
+            returnImage.Metadata.ExifProfile = exifProfile;
+
+            await returnImage.SaveAsPngAsync(target);
+
         }
-        else
+        finally
         {
-            size = new Size();
+            textImage?.Dispose();
         }
-
-        //var attachment = attachments?.FirstOrDefault(a => a?.Width != null && a?.Height != null);
-        //Image<Rgba32> attachmentImage = null;
-        //if (attachment != null)
-        //{
-        //    var ratio = Math.Min((double)Math.Max(imageWidth, 200) / attachment.Width.Value, 400.0 / attachment.Height.Value);
-        //    var width = (int)Math.Ceiling(attachment.Width.Value * ratio);
-        //    var height = (int)Math.Ceiling(attachment.Height.Value * ratio);
-
-        //    var decodeOptions = new DecoderOptions() { Sampler = KnownResamplers.NearestNeighbor, TargetSize = new Size(width - 2, height) };
-
-        //    using var httpClient = httpClientFactory.CreateClient("Discord");
-        //    using var request = new HttpRequestMessage(HttpMethod.Get, attachment.ProxyUrl + "?format=png");
-        //    using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-
-        //    response.EnsureSuccessStatusCode();
-
-        //    using var attachmentStream = await response.Content.ReadAsStreamAsync();
-        //    using var image = await Image.LoadAsync<Rgba32>(decodeOptions, attachmentStream);
-
-        //    attachmentImage = image.Clone();
-        //    attachmentImage.Mutate(m => m.Quantize(KnownQuantizers.WebSafe));
-        //}
-
-        using var topImage = new Image<Rgba32>(imageWidth, 8);
-        topImage.Mutate(m => m
-                    .SetGraphicsOptions(options => options.Antialias = false)
-                    .Fill(CLIPPY_BACKGROUND, new RectangleF(CLIPPY_CORNER_SIZE, 0, imageWidth - (CLIPPY_CORNER_SIZE * 2), CLIPPY_CORNER_SIZE))
-                    .DrawImage(topLeft, new Point(0, 0), 1.0f)
-                    .DrawImage(topRight, new Point(imageWidth - CLIPPY_CORNER_SIZE, 0), 1.0f)
-                    .DrawLine(basicPen, [new((CLIPPY_CORNER_SIZE - 1), 0), new(imageWidth - (CLIPPY_CORNER_SIZE), 0)])); // i hate off by ones
-
-        var arrowPosition = ((imageWidth / 2.0f) - (characterImage.Width / 2)) + 4; // vibes based maths
-        using var bottomImage = new Image<Rgba32>(imageWidth, CLIPPY_BOTTOM_HEIGHT);
-        bottomImage.Mutate(m => m
-                    .SetGraphicsOptions(options => options.Antialias = false)
-                    .Fill(CLIPPY_BACKGROUND, new RectangleF(8, 0, imageWidth - (CLIPPY_CORNER_SIZE * 2), CLIPPY_CORNER_SIZE))
-                    .DrawImage(bottomLeft, new Point(0, 0), 1.0f)
-                    .DrawImage(bottomRight, new Point(imageWidth - CLIPPY_CORNER_SIZE, 0), 1.0f)
-                    .DrawLine(basicPen, [new((CLIPPY_CORNER_SIZE - 1), (CLIPPY_CORNER_SIZE - 1)), new(imageWidth - (CLIPPY_CORNER_SIZE + 1), (CLIPPY_CORNER_SIZE - 1))])
-                    .DrawImage(arrow, new Point((int)arrowPosition, 0), 1));
-
-        //if (attachmentImage != null)
-        //    size = new Size(size.Width, size.Height + attachmentImage.Height + (textImage != null ? 5 : 0));
-
-        var textRectangle = new Rectangle(10, CLIPPY_TOP_HEIGHT - 1, imageWidth, (int)(size.Height) + 1);
-        var innerRectangle = new Rectangle(0, CLIPPY_TOP_HEIGHT, imageWidth, (int)(size.Height) + 2);
-
-        var imageHeight = CLIPPY_TOP_HEIGHT + size.Height + CLIPPY_BOTTOM_HEIGHT + characterImage.Height;
-        using var returnImage = new Image<Rgba32>(imageWidth, (int)imageHeight);
-        returnImage.Mutate(m =>
-        {
-            m.SetGraphicsOptions(options => options.Antialias = false)
-             .Fill(Color.Transparent)
-             .Fill(CLIPPY_BACKGROUND, innerRectangle)
-             .DrawImage(topImage, new Point(0, 0), 1)
-             .DrawImage(bottomImage, new Point(0, (int)(CLIPPY_TOP_HEIGHT + size.Height)), 1);
-
-            //if (attachmentImage != null)
-            //    m.DrawImage(attachmentImage, new Point(Math.Max(1, (int)((imageWidth - attachmentImage.Width) / 2.0f)), CLIPPY_TOP_HEIGHT + size.Height - attachmentImage.Height), 1.0f);
-
-            m.DrawLine(Color.Black, 1, [new PointF(innerRectangle.Left, innerRectangle.Top - 1), new PointF(innerRectangle.Left, innerRectangle.Bottom - 1)])
-             .DrawLine(Color.Black, 1, [new PointF(innerRectangle.Right - 1, innerRectangle.Top - 1), new PointF(innerRectangle.Right - 1, innerRectangle.Bottom - 1)]);
-
-            if (textImage != null)
-                m.DrawImage(textImage, new Point(textRectangle.Left, textRectangle.Top), 1);
-
-            m.DrawImage(characterImage, new Point((imageWidth - characterImage.Width) / 2, (int)(CLIPPY_TOP_HEIGHT + size.Height + CLIPPY_BOTTOM_HEIGHT)), 1);
-        });
-
-        var stream = new MemoryStream();
-        await returnImage.SaveAsPngAsync(stream);
-        stream.Seek(0, SeekOrigin.Begin);
-
-        //attachmentImage?.Dispose();
-        textImage?.Dispose();
-
-        return stream;
     }
 
     private static string UnescapeText(string text)
     {
-        if (text.Length is <= 0 or > 2048)
-            throw new ArgumentException("Text must be at least 1 character but less than 2049 characters", nameof(text));
+        if (text.Length is <= 0 or > 4096)
+            throw new ArgumentException("Text must be at least 1 character but less than 4097 characters", nameof(text));
 
         var builder = new StringBuilder();
         var lastChar = char.MinValue;

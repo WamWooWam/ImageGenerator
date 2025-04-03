@@ -13,10 +13,7 @@ public class WPFTextRenderService(
 {
     public async Task RenderTextAsync(string text, TextRenderOptions options, Stream target)
     {
-        var dispatcher = dispatcherAccessor.Dispatcher;
-        if (dispatcher == null)
-            throw new InvalidOperationException();
-        
+        var dispatcher = dispatcherAccessor.Dispatcher ?? throw new InvalidOperationException();
         await dispatcher.InvokeAsync(() =>
         {
             var converter = new FontFamilyConverter();
@@ -66,6 +63,7 @@ public class WPFTextRenderService(
 
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(renderTarget));
+            //encoder.Metadata.Title = text;
             encoder.Save(target);
 
             target.Seek(0, SeekOrigin.Begin);
