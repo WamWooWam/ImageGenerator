@@ -9,23 +9,9 @@ using SixLabors.ImageSharp.PixelFormats;
 namespace ImageGeneratorService.Controllers;
 
 [ApiController]
-public class ClippyController : Controller
+public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
 {
     private static readonly Rgba32 CLIPPY_BACKGROUND = new(0xFF, 0xFF, 0xCC); // clippy background colour
-    private static readonly Lazy<FontCollection> CLIPPY_FONT_COLLECTION = new(() =>
-    {
-        var collection = new FontCollection();
-        collection.Add(new MemoryStream(ClippyResources.Tahoma));
-        collection.Add(new MemoryStream(ClippyResources.MicrosoftSansSerif));
-        collection.Add(new MemoryStream(ClippyResources.ComicSansMS));
-        collection.Add(new MemoryStream(ClippyResources.TimesNewRoman));
-        collection.Add(new MemoryStream(ClippyResources.CourierNew));
-        collection.Add(new MemoryStream(ClippyResources.NotoEmoji));
-        collection.Add(new MemoryStream(ClippyResources.SegoeUISymbol));
-        collection.AddCollection(new MemoryStream(ClippyResources.MSGothic));
-
-        return collection;
-    });
 
     private static readonly Lazy<Image<Rgba32>> CLIPPY_TOP_LEFT = new(() =>
     {
@@ -166,29 +152,19 @@ public class ClippyController : Controller
     private const ClippyFont CLIPPY_FONT_MAX = (ClippyFont.MSGothic + 1);
 
     [HttpGet("{character=clippy}/generate")]
-    public async Task<IActionResult> GenerateAsync(string text, string character = "", string font = "")
+    public async Task<IActionResult> GenerateAsync(string text, string character = "", string font = "", bool antialias = true)
     {
-       text = UnescapeText(text);
+        text = UnescapeText(text);
         var clippyCharacter = ToClippyCharacter(character);
         var clippyFont = ToClippyFont(font);
-        var stream = await GenerateClippyAsync(text, clippyCharacter, clippyFont, true);
+        var stream = await GenerateClippyAsync(text, clippyCharacter, clippyFont, true, antialias);
         return File(stream, "image/png");
     }
 
-    private async Task<MemoryStream> GenerateClippyAsync(string text, ClippyCharacter character, ClippyFont font, bool wrap)
+    private async Task<MemoryStream> GenerateClippyAsync(string text, ClippyCharacter character, ClippyFont font, bool wrap, bool antialias)
     {
         using var characterImage = Image.Load<Rgba32>((byte[])ClippyResources.ResourceManager.GetObject(CLIPPY_CHARACTERS[(int)character])!);
-        var collection = CLIPPY_FONT_COLLECTION.Value;
-        var clippyFont = font switch
-        {
-            ClippyFont.Tahoma => collection.Get("Tahoma").CreateFont(10.5f),
-            ClippyFont.Times => collection.Get("Times New Roman").CreateFont(11f),
-            ClippyFont.ComicSans => collection.Get("Comic Sans MS").CreateFont(11f),
-            ClippyFont.MSSansSerif => collection.Get("Microsoft Sans Serif").CreateFont(10.5f),
-            ClippyFont.MSGothic => collection.Get("MS Gothic").CreateFont(10.5f),
-            ClippyFont.CourierNew => collection.Get("Courier New").CreateFont(11f),
-            _ => throw new InvalidOperationException()
-        };
+        //var collection = CLIPPY_FONT_COLLECTION.Value;
 
         var topLeft = CLIPPY_TOP_LEFT.Value;
         var topRight = CLIPPY_TOP_RIGHT.Value;
@@ -197,30 +173,42 @@ public class ClippyController : Controller
         var arrow = CLIPPY_ARROW.Value;
 
         var basicPen = new SolidPen(Brushes.Solid(Color.Black), 1);
-
         var imageWidth = CLIPPY_DEFAULT_MAX_WIDTH;
-        var textOptions = new RichTextOptions(clippyFont)
+
+        Image<Rgba32>? textImage = null;
+        Size size;
+        if (!string.IsNullOrWhiteSpace(text))
         {
-            WrappingLength = wrap ? imageWidth - 20 : -1,
-            HintingMode = HintingMode.Standard,
-            Font = clippyFont,
-            Dpi = 96,
-            WordBreaking = WordBreaking.BreakWord,
-            FallbackFontFamilies = [
-                collection.Get("MS Gothic"),
-                collection.Get("Noto Emoji"),
-                collection.Get("Times New Roman"),
-                collection.Get("Segoe UI Symbol"),
-            ]
-        };
+            var clippyFont = font switch
+            {
+                ClippyFont.Tahoma => ("Tahoma", 10f),
+                ClippyFont.Times => ("Times New Roman", 11f),
+                ClippyFont.ComicSans => ("Comic Sans MS", 11f),
+                ClippyFont.MSSansSerif => ("Microsoft Sans Serif", 10.5f),
+                ClippyFont.MSGothic => ("MS Gothic", 10.5f),
+                ClippyFont.CourierNew => ("Courier New", 11f),
+                _ => throw new InvalidOperationException()
+            };
+
+            using var httpClient = httpClientFactory.CreateClient("TextRenderService");
+            using var resp = await httpClient.GetStreamAsync("render" +
+                $"?text={Uri.EscapeDataString(text)}" +
+                $"&font={Uri.EscapeDataString($"{clippyFont.Item1}, MS Gothic, Noto Emoji, Times New Roman, Seoge UI Symbol")}" +
+                $"&size={clippyFont.Item2}" +
+                $"&maxWidth={imageWidth - 20}" +
+                $"&antialias={antialias}" +
+                $"&gdi=true");
+
+            textImage = await Image.LoadAsync<Rgba32>(resp);
+            size = textImage.Size;
+            imageWidth = Math.Max((int)(size.Width + 20), CLIPPY_MIN_WIDTH);
+        }
+        else
+        {
+            size = new Size();
+        }
 
         //var attachment = attachments?.FirstOrDefault(a => a?.Width != null && a?.Height != null);
-
-        var textSize = TextMeasurer.MeasureSize(text, textOptions);
-        var size = new Size((int)textSize.Right, (int)textSize.Bottom);
-        //imageWidth = Math.Max((int)size.Width + 20, attachment != null ? CLIPPY_MIN_WIDTH_WITH_IMAGE : CLIPPY_MIN_WIDTH);
-        imageWidth = Math.Max((int)(size.Width + 20), CLIPPY_MIN_WIDTH);
-
         //Image<Rgba32> attachmentImage = null;
         //if (attachment != null)
         //{
@@ -242,18 +230,6 @@ public class ClippyController : Controller
         //    attachmentImage = image.Clone();
         //    attachmentImage.Mutate(m => m.Quantize(KnownQuantizers.WebSafe));
         //}
-
-        Image<Rgba32> textImage = null;
-        if (!string.IsNullOrWhiteSpace(text))
-        {
-            // Generate image containing text
-            textImage = new(imageWidth, (int)size.Height + 10);
-            textImage.Mutate(m => m
-                .SetGraphicsOptions(options => options.Antialias = true)
-                .SetGraphicsOptions(options => options.AntialiasSubpixelDepth = 1)
-                .Fill(Color.Transparent)
-                .DrawText(textOptions, text, Brushes.Solid(Color.Black), null));
-        }
 
         using var topImage = new Image<Rgba32>(imageWidth, 8);
         topImage.Mutate(m => m

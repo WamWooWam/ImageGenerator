@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35828.75 d17.13
+VisualStudioVersion = 17.13.35828.75
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageGeneratorService", "ImageGeneratorService\ImageGeneratorService.csproj", "{696BED0D-2C2F-4A57-B2D0-500DB37F5BCA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinTextRenderer", "WinTextRenderer\WinTextRenderer.csproj", "{F63C2729-F7E6-4155-85D0-B94EE9A97CA6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{696BED0D-2C2F-4A57-B2D0-500DB37F5BCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{696BED0D-2C2F-4A57-B2D0-500DB37F5BCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{696BED0D-2C2F-4A57-B2D0-500DB37F5BCA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F63C2729-F7E6-4155-85D0-B94EE9A97CA6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F63C2729-F7E6-4155-85D0-B94EE9A97CA6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F63C2729-F7E6-4155-85D0-B94EE9A97CA6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F63C2729-F7E6-4155-85D0-B94EE9A97CA6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

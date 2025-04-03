@@ -130,12 +130,6 @@
   <data name="ClippyCorner" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>clippycorner.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="ComicSansMS" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>COMIC.TTF;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="CourierNew" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>COUR.TTF;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
   <data name="dot" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>dot.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
@@ -145,17 +139,8 @@
   <data name="hoverbot" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>hoverbot.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="MicrosoftSansSerif" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>MICROSS.TTF;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="MSGothic" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>MSGOTHIC.TTC;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
   <data name="nature" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>nature.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="NotoEmoji" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>notoemj.ttf;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="office" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>office.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
@@ -168,15 +153,6 @@
   </data>
   <data name="scribble" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>scribble.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="SegoeUISymbol" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>SEGUISYM.TTF;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="Tahoma" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>TAHOMA.TTF;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="TimesNewRoman" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>TIMES.TTF;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="wizard" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>wizard.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>

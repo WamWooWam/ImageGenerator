@@ -103,26 +103,6 @@ namespace ImageGeneratorService.Resources.Clippy {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static byte[] ComicSansMS {
-            get {
-                object obj = ResourceManager.GetObject("ComicSansMS", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] CourierNew {
-            get {
-                object obj = ResourceManager.GetObject("CourierNew", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
         internal static byte[] dot {
             get {
                 object obj = ResourceManager.GetObject("dot", resourceCulture);
@@ -153,39 +133,9 @@ namespace ImageGeneratorService.Resources.Clippy {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static byte[] MicrosoftSansSerif {
-            get {
-                object obj = ResourceManager.GetObject("MicrosoftSansSerif", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] MSGothic {
-            get {
-                object obj = ResourceManager.GetObject("MSGothic", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
         internal static byte[] nature {
             get {
                 object obj = ResourceManager.GetObject("nature", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] NotoEmoji {
-            get {
-                object obj = ResourceManager.GetObject("NotoEmoji", resourceCulture);
                 return ((byte[])(obj));
             }
         }
@@ -226,36 +176,6 @@ namespace ImageGeneratorService.Resources.Clippy {
         internal static byte[] scribble {
             get {
                 object obj = ResourceManager.GetObject("scribble", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] SegoeUISymbol {
-            get {
-                object obj = ResourceManager.GetObject("SegoeUISymbol", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] Tahoma {
-            get {
-                object obj = ResourceManager.GetObject("Tahoma", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] TimesNewRoman {
-            get {
-                object obj = ResourceManager.GetObject("TimesNewRoman", resourceCulture);
                 return ((byte[])(obj));
             }
         }
