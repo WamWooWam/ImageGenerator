@@ -9,11 +9,10 @@ namespace WinTextRenderer.Services;
 
 public class WPFTextRenderService(
     ILogger<WPFTextRenderService> logger,
-    DispatcherAccessor dispatcherAccessor) : ITextRenderService
+    IDispatcher dispatcher) : ITextRenderService
 {
     public async Task RenderTextAsync(string text, TextRenderOptions options, Stream target)
     {
-        var dispatcher = dispatcherAccessor.Dispatcher ?? throw new InvalidOperationException();
         await dispatcher.InvokeAsync(() =>
         {
             var converter = new FontFamilyConverter();
@@ -64,7 +63,7 @@ public class WPFTextRenderService(
 
             renderTarget.Render(textBlock);
 
-            var encoder = new PngBitmapEncoder();
+            var encoder = new PngBitmapEncoder() { Interlace = PngInterlaceOption.Off };
             encoder.Frames.Add(BitmapFrame.Create(renderTarget));
             //encoder.Metadata.Title = text;
             encoder.Save(target);

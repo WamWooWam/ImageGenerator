@@ -4,8 +4,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddWindowsService();
 
-builder.Services.AddHostedService<WPFService>();
-builder.Services.AddSingleton<DispatcherAccessor>();
+builder.Services.AddHostedService<WPFHostedService>();
+builder.Services.AddSingleton<IDispatcher, WPFDispatcher>();
 builder.Services.AddTransient<ITextRenderService, WPFTextRenderService>();
 builder.Services.AddControllers();
 
