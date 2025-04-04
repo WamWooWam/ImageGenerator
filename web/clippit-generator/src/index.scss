@@ -1,0 +1,89 @@
+:root {
+    background-color: #008080;
+}
+
+:root,
+button,
+label,
+input,
+textarea,
+select,
+option,
+table,
+ul.tree-view,
+.window,
+.title-bar {
+  font-family: "Pixelated MS Sans Serif", "MS Sans Serif", Arial;
+  -webkit-font-smoothing: none;
+  font-size: 11px;
+}
+
+
+#app {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 16px);
+}
+
+.main-window>.window-body {
+    width: 404px;
+    height: 448px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.window-body>.main-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    margin-bottom: 8px;
+}
+
+.window-body>.main-content>.window {
+    flex: 1;
+}
+
+.buttons {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.assistant {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 200;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 8px;
+}
+
+.primary-text-area {
+    min-width: 200px;
+    min-height: 100px;
+    resize: none;
+}
+
+h4 {
+    font-size: 16pt;
+    margin: 12px 0 16px 0;
+}
+
+menu[role=tablist]>li>a {
+    margin: 6px 6px 0 6px;
+}
+
+.credit {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    margin: 0;
+    color: white;
+}

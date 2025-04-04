@@ -162,6 +162,7 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
     {
         return GenerateAsync(character, new ClippyOptions(text, font, antialias));
     }
+
     [HttpPost("{character=clippy}/generate")]
     public async Task GenerateAsync([FromRoute] string character, [FromForm] ClippyOptions formData)
     {
