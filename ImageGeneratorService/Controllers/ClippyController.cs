@@ -266,6 +266,7 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
                     $"&size={clippyFont.Item2}" +
                     $"&maxWidth={imageWidth - 20}" +
                     $"&antialias={antialias}" +
+                    $"&background=%23FFFFFFCC" +
                     $"&gdi=true");
 
                 textImage = await Image.LoadAsync<Rgba32>(resp);
@@ -293,6 +294,8 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
 
                 attachment.Mutate(m => m.Resize(resizeOptions)
                     .Quantize(KnownQuantizers.WebSafe));
+
+                size = new Size(size.Width, size.Height + attachment.Height + (textImage != null ? 5 : 0));
             }
 
             using var topImage = new Image<Rgba32>(imageWidth, 8);
@@ -312,9 +315,6 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
                         .DrawImage(bottomRight, new Point(imageWidth - CLIPPY_CORNER_SIZE, 0), 1.0f)
                         .DrawLine(basicPen, [new((CLIPPY_CORNER_SIZE - 1), (CLIPPY_CORNER_SIZE - 1)), new(imageWidth - (CLIPPY_CORNER_SIZE + 1), (CLIPPY_CORNER_SIZE - 1))])
                         .DrawImage(arrow, new Point((int)arrowPosition, 0), 1));
-
-            if (attachment != null)
-                size = new Size(size.Width, size.Height + attachment.Height + (textImage != null ? 5 : 0));
 
             var textRectangle = new Rectangle(10, CLIPPY_TOP_HEIGHT - 1, imageWidth, (int)(size.Height) + 1);
             var innerRectangle = new Rectangle(0, CLIPPY_TOP_HEIGHT, imageWidth, (int)(size.Height) + 2);

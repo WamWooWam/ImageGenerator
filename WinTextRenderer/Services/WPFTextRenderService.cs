@@ -45,7 +45,10 @@ public class WPFTextRenderService(
                 {
                     TextOptions.SetTextFormattingMode(textBlock, TextFormattingMode.Display);
                 }
+
+                RenderOptions.SetClearTypeHint(textBlock, ClearTypeHint.Enabled);
             }
+
 
             textBlock.Measure(new Size(options.MaxWidth, options.MaxHeight));
             textBlock.Arrange(new Rect(new Point(0, 0), textBlock.DesiredSize));
