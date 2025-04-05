@@ -80,6 +80,7 @@ export default function Root() {
                                             <option value="sans_serif">Microsoft Sans Serif</option>
                                             <option value="courier">Courier New</option>
                                             <option value="gothic">MS Gothic</option>
+                                            <option value="papyrus">Papyrus</option>
                                         </select>
                                     </div>
                                     <div class="field">

@@ -47,6 +47,9 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
     private static readonly string[] CLIPPY_CHARACTERS
         = ["clippy", "dot", "hoverbot", "nature", "office", "powerpup", "scribble", "wizard", "rover", "einstein", "bonzi"];
 
+    private static readonly string[] CLIPPY_DISPLAY_NAMES
+        = ["Clippit", "The Dot", "F1", "Mother Nature", "Office Logo", "Rocky", "Links", "Merlin", "Rover", "The Genius", "BonziBUDDY"];
+
     private const int CLIPPY_TOP_HEIGHT = 8;
     private const int CLIPPY_CORNER_SIZE = 8;
     private const int CLIPPY_BOTTOM_HEIGHT = 23;
@@ -113,7 +116,8 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
         MSSansSerif,
         Times,
         CourierNew,
-        MSGothic
+        MSGothic,
+        Papyrus
     }
 
     internal static ClippyFont ToClippyFont(string str)
@@ -128,6 +132,7 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
         {
             "serif" => ClippyFont.Times,
             "tahoma" => ClippyFont.Tahoma,
+            "cursive" => ClippyFont.ComicSans,
             "comic" => ClippyFont.ComicSans,
             "comic_sans" => ClippyFont.ComicSans,
             "sans" => ClippyFont.ComicSans,
@@ -141,6 +146,7 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
             "monospace" => ClippyFont.CourierNew,
             "gothic" => ClippyFont.MSGothic,
             "ms_gothic" => ClippyFont.MSGothic,
+            "papyrus" => ClippyFont.Papyrus,
             "" => ClippyFont.ComicSans,
             _ => throw new ArgumentException("Not a valid clippy font", nameof(str))
         };
@@ -150,7 +156,7 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
     private const ClippyCharacter CLIPPY_CHARACTER_MAX = (ClippyCharacter.Bonzi + 1);
 
     private const ClippyFont CLIPPY_FONT_INVALID = (ClippyFont)(-1);
-    private const ClippyFont CLIPPY_FONT_MAX = (ClippyFont.MSGothic + 1);
+    private const ClippyFont CLIPPY_FONT_MAX = (ClippyFont.Papyrus + 1);
     public record class ClippyOptions(
         [FromForm(Name = "text")] string? Text = null,
         [FromForm(Name = "font")] string Font = "",
@@ -172,9 +178,9 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
         {
             if (formData.Attachment != null)
             {
-                if (formData.Attachment.Length is 0 or > 2 * 1024 * 1024)
+                if (formData.Attachment.Length is 0 or > 4 * 1024 * 1024)
                 {
-                    await WriteErrorMessageAsync(400, "'attachment' must have a specified size, and may not be larger than 2MB.");
+                    await WriteErrorMessageAsync(400, "'attachment' must have a specified size, and may not be larger than 4MiB.");
                     return;
                 }
 
@@ -257,6 +263,7 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
                     ClippyFont.MSSansSerif => ("Microsoft Sans Serif", 10.5f),
                     ClippyFont.MSGothic => ("MS Gothic", 10.5f),
                     ClippyFont.CourierNew => ("Courier New", 11f),
+                    ClippyFont.Papyrus => ("Papyrus", 11f),
                     _ => throw new InvalidOperationException()
                 };
 
@@ -342,9 +349,18 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
                 m.DrawImage(characterImage, new Point((imageWidth - characterImage.Width) / 2, (int)(CLIPPY_TOP_HEIGHT + size.Height + CLIPPY_BOTTOM_HEIGHT)), 1);
             });
 
+            var description = $"Microsoft Office Assistant, {CLIPPY_DISPLAY_NAMES[(int)character]}";
+            if (!string.IsNullOrWhiteSpace(text))
+                description += $" saying '{text}'";
+            if (attachment != null)
+                description += $" with image";
+
+            description += ".";
+
             var exifProfile = new ExifProfile();
             exifProfile.SetValue(ExifTag.Software, "Wam's Clippy Generator");
-            exifProfile.SetValue(ExifTag.ImageDescription, "Microsoft Office Assistant" + (text != null ? " saying " + text : ""));
+            exifProfile.SetValue(ExifTag.ImageDescription, description);
+            exifProfile.SetValue(ExifTag.XPTitle, description);
             returnImage.Metadata.ExifProfile = exifProfile;
 
             await returnImage.SaveAsPngAsync(target);
