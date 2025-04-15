@@ -1,12 +1,13 @@
 ﻿using System.Globalization;
 using Discord;
 using Discord.Interactions;
+using Microsoft.Extensions.Configuration;
 
 namespace ImageGeneratorService.Bot.Interactions;
 
 [CommandContextType(InteractionContextType.BotDm, InteractionContextType.PrivateChannel, InteractionContextType.Guild)]
-[IntegrationType(ApplicationIntegrationType.UserInstall | ApplicationIntegrationType.GuildInstall)]
-public class ClippyInteractions(IHttpClientFactory httpClientFactory) : InteractionModuleBase
+[IntegrationType(ApplicationIntegrationType.UserInstall, ApplicationIntegrationType.GuildInstall)]
+public class ClippyInteractions(IHttpClientFactory httpClientFactory, IConfiguration configuration) : InteractionModuleBase
 {
     public enum ClippyCharacter
     {
@@ -49,16 +50,47 @@ public class ClippyInteractions(IHttpClientFactory httpClientFactory) : Interact
         [ChoiceDisplay("MS Gothic (Japan)")]
         MSGothic,
         [ChoiceDisplay("Papyrus")]
-        Papyrus
+        Papyrus,
+        [ChoiceDisplay("Arial")]
+        Arial,
+        [ChoiceDisplay("Arial Black")]
+        ArialBlack,
+        [ChoiceDisplay("Andalé Mono")]
+        AndaleMono,
+        [ChoiceDisplay("Georgia")]
+        Georgia,
+        [ChoiceDisplay("Impact")]
+        Impact,
+        [ChoiceDisplay("Trebuchet MS")]
+        TrebuchetMS,
+        [ChoiceDisplay("Verdana")]
+        Verdana,
+        [ChoiceDisplay("Wingdings")]
+        Wingdings,
+        [ChoiceDisplay("Webdings")]
+        Webdings,
+        [ChoiceDisplay("Elephant")]
+        Elephant,
+        [ChoiceDisplay("Calibri")]
+        Calibri,
+        [ChoiceDisplay("Cambria")]
+        Cambria,
+        [ChoiceDisplay("Segoe UI")]
+        SegoeUI,
+        [ChoiceDisplay("Nokia Sans")]
+        Nokia,
+        [ChoiceDisplay("Nokia Pure")]
+        NokiaPure
     }
 
     private static readonly string[] CLIPPY_DISPLAY_NAMES
         = ["Clippit", "The Dot", "F1", "Mother Nature", "Office Logo", "Rocky", "Links", "Merlin", "Rover", "The Genius", "BonziBUDDY"];
+
     private static readonly string[] CLIPPY_DISPLAY_DESCRIPTIONS
         = ["A paperclip on a sheet of paper",
-           "A red orb with a face", 
+           "A red orb with a face",
            "A futuristic robot",
-           "The globe", 
+           "The globe",
            "4 puzzle pieces, interlocking into a square, red then blue then green then yellow.",
            "A cartoon dog, lightly golden fur, sat down and smiling",
            "A cartoon cat, lightly golden fir, sat down and smiling",
@@ -71,11 +103,11 @@ public class ClippyInteractions(IHttpClientFactory httpClientFactory) : Interact
     private const ClippyCharacter CLIPPY_CHARACTER_MAX = (ClippyCharacter.Bonzi + 1);
 
     private const ClippyFont CLIPPY_FONT_INVALID = (ClippyFont)(-1);
-    private const ClippyFont CLIPPY_FONT_MAX = (ClippyFont.MSGothic + 1);
+    private const ClippyFont CLIPPY_FONT_MAX = (ClippyFont.NokiaPure + 1);
 
     [SlashCommand("clippy", "Generates an image of clippy asking a question.", runMode: RunMode.Async)]
     public async Task Command(
-        [Summary(description: "What do you want the office assistant to say?")] string? text = null,
+        [Summary(description: "What do you want the office assistant to say?")][MaxLength(4096)] string? text = null,
         [Summary(description: "What character do you want?")] ClippyCharacter character = CLIPPY_CHARACTER_INVALID,
         [Summary(description: "What font do you want?")] ClippyFont font = CLIPPY_FONT_INVALID,
         [Summary(description: "Add an image")] IAttachment? image = null,
@@ -93,7 +125,7 @@ public class ClippyInteractions(IHttpClientFactory httpClientFactory) : Interact
 
         try
         {
-            var (stream, description) = await GenerateClippyAsync(text, character, font, [image], false);
+            var (stream, description) = await GenerateClippyAsync(text, character, font, [image], antialiasing);
             await FollowupWithFileAsync(new FileAttachment(stream, "clippit.png", description: description));
             await stream.DisposeAsync();
         }
@@ -131,27 +163,35 @@ public class ClippyInteractions(IHttpClientFactory httpClientFactory) : Interact
         }
     }
 
-    private static void PickCharacterAndFont(IUser user, ref ClippyCharacter character, ref ClippyFont font)
+    private void PickCharacterAndFont(IUser user, ref ClippyCharacter character, ref ClippyFont font)
     {
         if (character == CLIPPY_CHARACTER_INVALID)
         {
-            character = user.Id switch
+            character = (ClippyCharacter)(((user.Id >> 22) + 3) % (int)CLIPPY_CHARACTER_MAX);
+
+            var characterOverrides = configuration.GetSection("CharacterOverrides");
+            if (characterOverrides != null)
             {
-                151439944391458816 => ClippyCharacter.Scribble,
-                279746398633721856 => ClippyCharacter.Einstein,
-                405396381977542657 => ClippyCharacter.Bonzi,
-                _ => (ClippyCharacter)(((user.Id >> 22) + 3) % (int)CLIPPY_CHARACTER_MAX)
-            };
+                var characterOverride = characterOverrides.GetValue(user.Id.ToString(), CLIPPY_CHARACTER_INVALID);
+                if (characterOverride != CLIPPY_CHARACTER_INVALID)
+                    character = characterOverride;
+            }
         }
 
         if (font == CLIPPY_FONT_INVALID)
         {
-            font = user.Id switch
+            font = (ClippyFont)(((user.Id >> 22) - 2) % (int)CLIPPY_FONT_MAX);
+
+            if (font is ClippyFont.Webdings or ClippyFont.Wingdings)
+                font += 3;
+
+            var fontOverrides = configuration.GetSection("FontOverrides");
+            if (fontOverrides != null)
             {
-                151439944391458816 => ClippyFont.Times,
-                279746398633721856 => ClippyFont.CourierNew,
-                _ => (ClippyFont)((user.Id >> 22) % (int)CLIPPY_FONT_MAX)
-            };
+                var fontOverride = fontOverrides.GetValue(user.Id.ToString(), CLIPPY_FONT_INVALID);
+                if (fontOverride != CLIPPY_FONT_INVALID)
+                    font = fontOverride;
+            }
         }
     }
 
@@ -166,7 +206,7 @@ public class ClippyInteractions(IHttpClientFactory httpClientFactory) : Interact
 
         var characterString = ((int)character).ToString(CultureInfo.InvariantCulture);
         var fontString = ((int)font).ToString(CultureInfo.InvariantCulture);
-        var antialiasString = antialiasing.ToString(CultureInfo.InstalledUICulture);
+        var antialiasString = antialiasing.ToString(CultureInfo.InvariantCulture);
 
         var content = new MultipartFormDataContent
         {
@@ -207,7 +247,12 @@ public class ClippyInteractions(IHttpClientFactory httpClientFactory) : Interact
         // TODO: this is embedded in the image file, use it
         var description = $"Microsoft Office Assistant, {CLIPPY_DISPLAY_NAMES[(int)character]} ({CLIPPY_DISPLAY_DESCRIPTIONS[(int)character]})";
         if (!string.IsNullOrWhiteSpace(text))
-            description += $" saying '{text}'";
+        {
+            string alt = text;
+            if (alt.Length > 512)
+                alt = string.Concat(alt.AsSpan(0, 509), "...");
+            description += $" saying '{alt}'";
+        }
         if (attachment != null)
             description += $" with image";
 

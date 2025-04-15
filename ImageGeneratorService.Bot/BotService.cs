@@ -11,24 +11,23 @@ namespace ImageGeneratorService.Bot;
 internal class BotService(
     IConfiguration configuration,
     IServiceProvider services,
+    ILogger<BotService> logger,
     ILoggerFactory loggerFactory,
     DiscordSocketClient client) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var logger = loggerFactory.CreateLogger<DiscordSocketClient>();
-
         var interactionService = new InteractionService(client.Rest, new InteractionServiceConfig() { LogLevel = LogSeverity.Debug });
 
         interactionService.Log += (msg) =>
         {
-            logger.LogInformation(msg.Message);
+            loggerFactory.CreateLogger(msg.Source).Log(msg);
             return Task.CompletedTask;
         };
 
         client.Log += (msg) =>
         {
-            logger.LogInformation(msg.Message);
+            loggerFactory.CreateLogger(msg.Source).Log(msg);
             return Task.CompletedTask;
         };
 
@@ -53,7 +52,9 @@ internal class BotService(
             }
         };
 
-        var token = configuration["Token"];
+        var token = configuration["Discord:Token"];
+        if (string.IsNullOrWhiteSpace(token))
+            throw new InvalidOperationException("No token specified!");
 
         await client.LoginAsync(TokenType.Bot, token);
         await client.StartAsync();

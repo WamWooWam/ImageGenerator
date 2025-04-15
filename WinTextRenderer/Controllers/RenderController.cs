@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using Microsoft.AspNetCore.Mvc;
 using WinTextRenderer.Services;
+
 namespace WinTextRenderer.Controllers;
 
 [Route("api/[controller]")]
@@ -11,6 +12,7 @@ public class RenderController(ITextRenderService textRenderService) : Controller
     public async Task<IActionResult> Get(string text,
                                          string font = "",
                                          double size = 11.0,
+                                         double dpi = 96.0,
                                          double maxWidth = double.PositiveInfinity,
                                          double maxHeight = double.PositiveInfinity,
                                          string foreground = "#000000",
@@ -24,7 +26,7 @@ public class RenderController(ITextRenderService textRenderService) : Controller
         var options = new TextRenderOptions(
             string.IsNullOrWhiteSpace(font) ? "Microsoft Sans Serif" : font,
             size,
-            96,
+            Math.Clamp(dpi, 48, 384),
             maxWidth,
             maxHeight,
             foreground,

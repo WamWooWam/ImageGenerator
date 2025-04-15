@@ -1,6 +1,7 @@
 using WinTextRenderer.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseIIS();
 
 builder.Services.AddWindowsService();
 

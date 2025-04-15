@@ -16,14 +16,15 @@ public class WPFTextRenderService(
         await dispatcher.InvokeAsync(() =>
         {
             var converter = new FontFamilyConverter();
+            var background = (Color)ColorConverter.ConvertFromString(options.Background)!;
 
             var textBlock = new TextBlock(new Run(text))
             {
                 FontFamily = (FontFamily)converter.ConvertFromString(options.FontFamily)!,
-                FontSize = (options.FontSize / 72.0) * options.Dpi,
+                FontSize = (options.FontSize / 72.0) * 96.0,
                 TextWrapping = options.Wrap ? TextWrapping.Wrap : TextWrapping.NoWrap,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(options.Foreground)!),
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(options.Background)!),
+                Background = new SolidColorBrush(background),
             };
 
             textBlock.Typography.Kerning = options.Kerning;
@@ -45,7 +46,10 @@ public class WPFTextRenderService(
                     TextOptions.SetTextFormattingMode(textBlock, TextFormattingMode.Display);
                 }
 
-                RenderOptions.SetClearTypeHint(textBlock, ClearTypeHint.Enabled);
+                if (background.A == 255)
+                {
+                    RenderOptions.SetClearTypeHint(textBlock, ClearTypeHint.Enabled);
+                }
             }
 
 
@@ -55,8 +59,8 @@ public class WPFTextRenderService(
             logger.LogDebug("Rendered {Text}, DesiredSize={DesiredSize}", text, textBlock.DesiredSize);
 
             var renderTarget = new RenderTargetBitmap(
-                (int)Math.Ceiling(textBlock.DesiredSize.Width),
-                (int)Math.Ceiling(textBlock.DesiredSize.Height),
+                (int)Math.Ceiling(textBlock.DesiredSize.Width * (options.Dpi / 96.0)),
+                (int)Math.Ceiling(textBlock.DesiredSize.Height * (options.Dpi / 96.0)),
                 (float)options.Dpi,
                 (float)options.Dpi,
                 PixelFormats.Default);

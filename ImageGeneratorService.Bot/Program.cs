@@ -10,13 +10,14 @@ var builder = Host.CreateApplicationBuilder();
 
 builder.Configuration
     .AddIniFile("settings.ini", optional: false, reloadOnChange: true)
+    .AddIniFile($"settings.{builder.Environment.EnvironmentName}.ini", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables("CLIPPYBOT_")
     .AddCommandLine(args);
 
 builder.Services.AddHttpClient("Discord");
 builder.Services.AddHttpClient("ClippyService", (c) =>
 {
-    c.BaseAddress = new Uri(builder.Configuration["ClippyServiceUrl"]!);
+    c.BaseAddress = new Uri(builder.Configuration["ImageGenerator:ClippyServiceUrl"]!);
 });
 
 builder.Services.AddSingleton(c => new DiscordSocketConfig() { GatewayIntents = GatewayIntents.AllUnprivileged });

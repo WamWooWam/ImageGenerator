@@ -74,13 +74,27 @@ export default function Root() {
                                         <select id="font-select"
                                             value={font}
                                             onChange={(e) => setFont((e.target as HTMLInputElement).value)}>
+                                            <option value="arial">Arial</option>
+                                            <option value="arial_black">Arial Black</option>
+                                            <option value="andale">Andale Mono</option>
+                                            <option value="calibri">Calibri</option>
+                                            <option value="cambria">Cambria</option>
                                             <option value="comic">Comic Sans MS</option>
-                                            <option value="times">Times New Roman</option>
-                                            <option value="tahoma">Tahoma</option>
-                                            <option value="sans_serif">Microsoft Sans Serif</option>
                                             <option value="courier">Courier New</option>
+                                            <option value="elephant">Elephant</option>
+                                            <option value="georgia">Georgia</option>
+                                            <option value="bottom_text">Impact</option>
+                                            <option value="sans_serif">Microsoft Sans Serif</option>
                                             <option value="gothic">MS Gothic</option>
+                                            <option value="nokia">Nokia Sans</option>
                                             <option value="papyrus">Papyrus</option>
+                                            <option value="segoe_ui">Segoe UI</option>
+                                            <option value="tahoma">Tahoma</option>
+                                            <option value="times">Times New Roman</option>
+                                            <option value="trebuchet_ms">Trebuchet MS</option>
+                                            <option value="verdana">Verdana</option>
+                                            <option value="webdings">Webdings</option>
+                                            <option value="wingdings">Wingdings</option>
                                         </select>
                                     </div>
                                     <div class="field">

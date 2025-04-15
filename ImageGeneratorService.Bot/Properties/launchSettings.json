@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ImageGeneratorService.Bot": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "CLIPPYBOT_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

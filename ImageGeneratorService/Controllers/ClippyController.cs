@@ -53,7 +53,8 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
     private const int CLIPPY_TOP_HEIGHT = 8;
     private const int CLIPPY_CORNER_SIZE = 8;
     private const int CLIPPY_BOTTOM_HEIGHT = 23;
-    private const int CLIPPY_DEFAULT_MAX_WIDTH = 300;
+    private const int CLIPPY_MAX_WIDTH = 300;
+    private const int CLIPPY_MAX_WIDTH_WITH_IMAGE = 400;
     private const int CLIPPY_MIN_WIDTH = 150;
     private const int CLIPPY_MIN_WIDTH_WITH_IMAGE = 200;
 
@@ -72,15 +73,15 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
         Bonzi
     }
 
-    internal static ClippyCharacter ToClippyCharacter(string str)
+    internal static ClippyCharacter ToClippyCharacter(string character)
     {
-        if (int.TryParse(str, CultureInfo.InvariantCulture, out var num) && num is >= 0 and < (int)CLIPPY_CHARACTER_MAX)
+        if (int.TryParse(character, CultureInfo.InvariantCulture, out var num) && num is >= 0 and < (int)CLIPPY_CHARACTER_MAX)
             return (ClippyCharacter)num;
 
-        if (Enum.TryParse<ClippyCharacter>(str, true, out var character))
-            return character;
+        if (Enum.TryParse<ClippyCharacter>(character, true, out var chara))
+            return chara;
 
-        return str.ToLowerInvariant() switch
+        return character.ToLowerInvariant() switch
         {
             "clippit" => ClippyCharacter.Clippy,
             "clippy" => ClippyCharacter.Clippy,
@@ -105,7 +106,7 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
             "bonzi" => ClippyCharacter.Bonzi,
             "that_fucking_purple_monkey" => ClippyCharacter.Bonzi,
             "" => ClippyCharacter.Clippy,
-            _ => throw new ArgumentException("Not a valid clippy character", nameof(str))
+            _ => throw new ArgumentException("Not a valid clippy character", nameof(character))
         };
     }
 
@@ -117,18 +118,33 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
         Times,
         CourierNew,
         MSGothic,
-        Papyrus
+        Papyrus,
+        Arial,
+        ArialBlack,
+        AndaleMono,
+        Georgia,
+        Impact,
+        TrebuchetMS,
+        Verdana,
+        Wingdings,
+        Webdings,
+        Elephant,
+        Calibri,
+        Cambria,
+        SegoeUI,
+        Nokia,
+        NokiaPure
     }
 
-    internal static ClippyFont ToClippyFont(string str)
+    internal static ClippyFont ToClippyFont(string font)
     {
-        if (int.TryParse(str, CultureInfo.InvariantCulture, out var num) && num is >= 0 and < (int)CLIPPY_FONT_MAX)
+        if (int.TryParse(font, CultureInfo.InvariantCulture, out var num) && num is >= 0 and < (int)CLIPPY_FONT_MAX)
             return (ClippyFont)num;
 
-        if (Enum.TryParse<ClippyFont>(str, true, out var font))
-            return font;
+        if (Enum.TryParse<ClippyFont>(font, true, out var f))
+            return f;
 
-        return str.ToLowerInvariant() switch
+        return font.ToLowerInvariant() switch
         {
             "serif" => ClippyFont.Times,
             "tahoma" => ClippyFont.Tahoma,
@@ -147,8 +163,28 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
             "gothic" => ClippyFont.MSGothic,
             "ms_gothic" => ClippyFont.MSGothic,
             "papyrus" => ClippyFont.Papyrus,
+            "arial" => ClippyFont.Arial,
+            "arial_black" => ClippyFont.ArialBlack,
+            "andale" => ClippyFont.AndaleMono,
+            "andale_mono" => ClippyFont.AndaleMono,
+            "mtcom" => ClippyFont.AndaleMono,
+            "georgia" => ClippyFont.Georgia,
+            "impact" => ClippyFont.Impact,
+            "bottom_text" => ClippyFont.Impact,
+            "trebuchet" => ClippyFont.TrebuchetMS,
+            "trebuchet_ms" => ClippyFont.TrebuchetMS,
+            "verdana" => ClippyFont.Verdana,
+            "wingdings" => ClippyFont.Wingdings,
+            "webdings" => ClippyFont.Webdings,
+            "elephant" => ClippyFont.Elephant,
+            "calibri" => ClippyFont.Calibri,
+            "cambria" => ClippyFont.Cambria,
+            "segoe" => ClippyFont.SegoeUI,
+            "segoe_ui" => ClippyFont.SegoeUI,
+            "nokia" => ClippyFont.Nokia,
+            "nokia_pure" => ClippyFont.NokiaPure,
             "" => ClippyFont.ComicSans,
-            _ => throw new ArgumentException("Not a valid clippy font", nameof(str))
+            _ => throw new ArgumentException("Not a valid clippy font", nameof(font))
         };
     }
 
@@ -156,7 +192,7 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
     private const ClippyCharacter CLIPPY_CHARACTER_MAX = (ClippyCharacter.Bonzi + 1);
 
     private const ClippyFont CLIPPY_FONT_INVALID = (ClippyFont)(-1);
-    private const ClippyFont CLIPPY_FONT_MAX = (ClippyFont.Papyrus + 1);
+    private const ClippyFont CLIPPY_FONT_MAX = (ClippyFont.NokiaPure + 1);
     public record class ClippyOptions(
         [FromForm(Name = "text")] string? Text = null,
         [FromForm(Name = "font")] string Font = "",
@@ -184,7 +220,7 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
                     return;
                 }
 
-                var options = new DecoderOptions() { TargetSize = new Size(CLIPPY_DEFAULT_MAX_WIDTH, 800) };
+                var options = new DecoderOptions() { TargetSize = new Size(CLIPPY_MAX_WIDTH_WITH_IMAGE, 8192) };
                 using var attachmentStream = formData.Attachment.OpenReadStream();
                 attachmentImage = await Image.LoadAsync<Rgba32>(options, attachmentStream);
             }
@@ -203,9 +239,8 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
             var clippyCharacter = ToClippyCharacter(character);
             var clippyFont = ToClippyFont(formData.Font);
 
-            var stream = this.Response.Body;
             this.Response.ContentType = "image/png";
-            await GenerateClippyAsync(stream, text, clippyCharacter, clippyFont, formData.Antialias, attachmentImage);
+            await GenerateClippyAsync(Response.Body, text, clippyCharacter, clippyFont, formData.Antialias, attachmentImage);
         }
         catch (UnknownImageFormatException)
         {
@@ -250,27 +285,56 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
             var arrow = CLIPPY_ARROW.Value;
 
             var basicPen = new SolidPen(Brushes.Solid(Color.Black), 1);
-            var imageWidth = CLIPPY_DEFAULT_MAX_WIDTH;
+            var imageWidth = CLIPPY_MAX_WIDTH;
             Size size;
 
             if (!string.IsNullOrWhiteSpace(text))
             {
                 var clippyFont = font switch
                 {
-                    ClippyFont.Tahoma => ("Tahoma", 10f),
-                    ClippyFont.Times => ("Times New Roman", 11f),
-                    ClippyFont.ComicSans => ("Comic Sans MS", 11f),
+                    ClippyFont.Tahoma => ("Tahoma", 10.5f),
+                    ClippyFont.Times => ("Times New Roman", 10.5f),
+                    ClippyFont.ComicSans => ("Comic Sans MS", 10.5f),
                     ClippyFont.MSSansSerif => ("Microsoft Sans Serif", 10.5f),
                     ClippyFont.MSGothic => ("MS Gothic", 10.5f),
                     ClippyFont.CourierNew => ("Courier New", 11f),
-                    ClippyFont.Papyrus => ("Papyrus", 11f),
-                    _ => throw new InvalidOperationException()
+                    ClippyFont.Papyrus => ("Papyrus", 16f),
+                    ClippyFont.Arial => ("Arial", 10.5f),
+                    ClippyFont.ArialBlack => ("Arial Black", 10.5f),
+                    ClippyFont.AndaleMono => ("Andale Mono", 10.5f),
+                    ClippyFont.Georgia => ("Georgia", 10.5f),
+                    ClippyFont.Impact => ("Impact", 16f),
+                    ClippyFont.TrebuchetMS => ("Trebuchet MS", 10.5f),
+                    ClippyFont.Verdana => ("Verdana", 10.5f),
+                    ClippyFont.Wingdings => ("Wingdings", 10.5f),
+                    ClippyFont.Webdings => ("Webdings", 10.5f),
+                    ClippyFont.Elephant => ("Elephant", 16f),
+                    ClippyFont.Calibri => ("Calibri", 11f),
+                    ClippyFont.Cambria => ("Cambria", 11f),
+                    ClippyFont.SegoeUI => ("Segoe UI", 10.5f),
+                    ClippyFont.Nokia => ("Nokia Sans S60 Bold", 11f),
+                    ClippyFont.NokiaPure => ("Nokia Pure Text", 10.5f),
+                    _ => throw new NotImplementedException(),
                 };
+
+                // subset of fonts that force AA on to look correct
+                if (font is (ClippyFont.SegoeUI or ClippyFont.NokiaPure or ClippyFont.Impact))
+                {
+                    antialias = true;
+                }
+                
+                // subset of larger fonts that make the image bigger
+                if (font is (ClippyFont.Elephant or ClippyFont.Papyrus or ClippyFont.Impact))
+                {
+                    imageWidth *= 2;
+                    characterImage.Mutate(c => 
+                        c.Resize((int)(characterImage.Width * 1.5), (int)(characterImage.Height * 1.5), KnownResamplers.NearestNeighbor));
+                }
 
                 using var httpClient = httpClientFactory.CreateClient("TextRenderService");
                 using var resp = await httpClient.GetStreamAsync("render" +
                     $"?text={Uri.EscapeDataString(text)}" +
-                    $"&font={Uri.EscapeDataString($"{clippyFont.Item1}, Noto Emoji, MS Gothic, Times New Roman, Seoge UI Symbol")}" +
+                    $"&font={Uri.EscapeDataString($"{clippyFont.Item1}, MS Gothic, Times New Roman, Seoge UI Symbol")}" +
                     $"&size={clippyFont.Item2}" +
                     $"&maxWidth={imageWidth - 20}" +
                     $"&antialias={antialias}" +
@@ -305,6 +369,7 @@ public class ClippyController(IHttpClientFactory httpClientFactory) : Controller
 
                 size = new Size(size.Width, size.Height + attachment.Height + (textImage != null ? 5 : 0));
             }
+
 
             using var topImage = new Image<Rgba32>(imageWidth, 8);
             topImage.Mutate(m => m
